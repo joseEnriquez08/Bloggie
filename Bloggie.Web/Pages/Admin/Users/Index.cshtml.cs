@@ -1,11 +1,13 @@
 using Bloggie.Web.Models.ViewModels;
 using Bloggie.Web.Repositories;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.RazorPages;
 
 namespace Bloggie.Web.Pages.Admin.Users
 {
+    [Authorize(Roles = "Admin")]
     public class IndexModel : PageModel
     {
         private readonly IUserRepository userRepository;
@@ -22,9 +24,54 @@ namespace Bloggie.Web.Pages.Admin.Users
         {
             this.userRepository = userRepositrory;
         }
-
+        
         public async Task<IActionResult> OnGet()
         {
+
+            await GetUsers();
+            return Page();
+        }
+
+        public async Task<IActionResult> OnPost()
+        {
+            if (ModelState.IsValid)
+            {
+                var identityUser = new IdentityUser
+                {
+                    UserName = AddUserRequest.Username,
+                    Email = AddUserRequest.Email
+                };
+
+                var roles = new List<string> { "User" };
+
+                if (AddUserRequest.AdminCheckBox)
+                {
+                    roles.Add("Admin");
+                }
+                var result = await userRepository.Add(identityUser, AddUserRequest.Password, roles);
+
+                if (result)
+                {
+                    return RedirectToPage("/Admin/Users/Index");
+                }
+                return Page();
+            }
+
+            await GetUsers();
+            return Page();
+            
+           
+        }
+
+        public async Task<IActionResult> OnPostDelete()
+        {
+            await userRepository.Delete(SelectedUserId);
+            return RedirectToPage("/Admin/Users/Index");
+        }
+
+        private async Task GetUsers()
+        {
+
             var users = await userRepository.GetAll();
 
             Users = new List<User>();
@@ -40,36 +87,6 @@ namespace Bloggie.Web.Pages.Admin.Users
 
             }
 
-            return Page();
-        }
-
-        public async Task<IActionResult> OnPost()
-        {
-            
-            var identityUser = new IdentityUser
-            {
-                UserName = AddUserRequest.Username,
-                Email = AddUserRequest.Email
-            };
-
-            var roles = new List<string> { "User" };
-
-            if (AddUserRequest.AdminCheckBox)
-            {
-                roles.Add("Admin");
-            }
-            var result = await userRepository.Add(identityUser, AddUserRequest.Password, roles);
-
-            if (result)
-            {
-                return RedirectToPage("/Admin/Users/Index");
-            }
-            return Page();
-        }
-
-        public async Task<IActionResult> OnPostDelete()
-        {
-            return Page();
         }
     }
 }

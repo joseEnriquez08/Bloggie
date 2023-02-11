@@ -5,6 +5,7 @@ using Bloggie.Web.Repositories;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.RazorPages;
+using System.ComponentModel.DataAnnotations;
 using System.Text.Json;
 
 namespace Bloggie.Web.Pages.Admin.Blogs
@@ -32,6 +33,7 @@ namespace Bloggie.Web.Pages.Admin.Blogs
         public IFormFile FeaturedImage { get; set; }
 
         [BindProperty]
+        [Required]
         public string Tags { get; set; }
 
 
@@ -46,37 +48,56 @@ namespace Bloggie.Web.Pages.Admin.Blogs
 
         public async Task<IActionResult> OnPost()
         {
-            //maps request to a blogPost object
-            var blogPost = new BlogPost()
+            ValidateAddBlogPost();
+
+            if (ModelState.IsValid)
             {
-                Heading = AddBlogPostRequest.Heading,
-                PageTitle = AddBlogPostRequest.PageTitle,
-                Content = AddBlogPostRequest.Content,
-                ShortDescription = AddBlogPostRequest.ShortDescription,
-                FeaturedImageUrl = AddBlogPostRequest.FeaturedImageUrl,
-                UrlHandle = AddBlogPostRequest.UrlHandle,
-                PublishedDate = AddBlogPostRequest.PublishedDate,
-                Author = AddBlogPostRequest.Author,
-                Visible = AddBlogPostRequest.Visible,
-                Tags = new List<Tag>(Tags.Split(',').Select(x => new Tag() { Name = x.Trim()}))
-            };
-           /* //when adding to the database, the GUID from the mapping will automatically be assigned
-            await bloggieDbContext.BlogPosts.AddAsync(blogPost);
-            await bloggieDbContext.SaveChangesAsync();*/
+                //maps request to a blogPost object
+                var blogPost = new BlogPost()
+                {
+                    Heading = AddBlogPostRequest.Heading,
+                    PageTitle = AddBlogPostRequest.PageTitle,
+                    Content = AddBlogPostRequest.Content,
+                    ShortDescription = AddBlogPostRequest.ShortDescription,
+                    FeaturedImageUrl = AddBlogPostRequest.FeaturedImageUrl,
+                    UrlHandle = AddBlogPostRequest.UrlHandle,
+                    PublishedDate = AddBlogPostRequest.PublishedDate,
+                    Author = AddBlogPostRequest.Author,
+                    Visible = AddBlogPostRequest.Visible,
+                    Tags = new List<Tag>(Tags.Split(',').Select(x => new Tag() { Name = x.Trim() }))
+                };
+                /* //when adding to the database, the GUID from the mapping will automatically be assigned
+                 await bloggieDbContext.BlogPosts.AddAsync(blogPost);
+                 await bloggieDbContext.SaveChangesAsync();*/
 
-            await blogPostRepository.AddAsync(blogPost);
+                await blogPostRepository.AddAsync(blogPost);
 
-            var notification = new Notification
-            {
-                Type = Enums.NotificationType.Success,
-                Message = "New blog created!"
+                var notification = new Notification
+                {
+                    Type = Enums.NotificationType.Success,
+                    Message = "New blog created!"
 
-            };
-            TempData["Notification"] = JsonSerializer.Serialize(notification);
+                };
+                TempData["Notification"] = JsonSerializer.Serialize(notification);
 
 
-            //sends to another page
-            return RedirectToPage("/Admin/Blogs/List");
+                //sends to another page
+                return RedirectToPage("/Admin/Blogs/List");
+            }
+
+            return Page();
+            
         }
+        private void ValidateAddBlogPost()
+        {
+            if (AddBlogPostRequest.PublishedDate.Date < DateTime.Now.Date)
+            {
+                ModelState.AddModelError("AddBlogPostRequest.PublishedDate",
+                    $"{nameof(AddBlogPostRequest.PublishedDate)} can only be today's dat or a future date");
+            }
+        }
+
     }
+
+    
 }
